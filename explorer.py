@@ -167,8 +167,6 @@ plt.ylabel("Learning rate")
 plt.ylim(bottom=0)
 st.pyplot(fig)
 
-print(lrs)
-
 # fig = plt.figure()
 # plt.plot(lrs2)
 # plt.title(f"Learning rate schedule for {name}")
