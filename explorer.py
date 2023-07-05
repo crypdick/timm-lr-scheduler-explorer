@@ -106,7 +106,7 @@ dummy_model = timm.create_model("resnet18")
 dummy_optimizer = create_optimizer_v2(dummy_model, opt="sgd", lr=lr)
 
 
-scheduler, _ = create_scheduler_v2(
+scheduler, timm_num_epochs = create_scheduler_v2(
     optimizer=dummy_optimizer, sched=name, **override_args
 )
 assert isinstance(
@@ -124,16 +124,13 @@ def get_current_lr(optimizer):
     return lr
 
 
-num_epochs = override_args["num_epochs"]
 epoch_ticks = []
 lrs = []
 lrs2 = []
-if override_args["cycle_mul"] > 1:
-    num_epochs = int(num_epochs * override_args["cycle_mul"])
-for epoch in range(num_epochs):
+for epoch in range(timm_num_epochs):
     # note: need to step at the beginning of epoch, since we use 0-indexing for epoch
     scheduler.step(epoch=epoch)  # will have no effect if step_on_epochs is False
-
+    
     epoch_ticks.append(epoch)
     lrs.append(get_current_lr(dummy_optimizer))
 
@@ -150,8 +147,8 @@ for epoch in range(num_epochs):
     # scheduler._get_lr(epoch)
     # )  # sanity check: get_lr should be the same as optimizer lr
 
-assert len(lrs) == num_epochs * override_args["updates_per_epoch"], (
-    f"Expected {num_epochs * override_args['updates_per_epoch']} LR values, "
+assert len(lrs) == timm_num_epochs * override_args["updates_per_epoch"], (
+    f"Expected {timm_num_epochs * override_args['updates_per_epoch']-1} LR values, "
     f"got {len(lrs)}"
 )
 
@@ -173,3 +170,6 @@ st.pyplot(fig)
 # plt.xlabel("Epoch")
 # plt.ylabel("Learning rate")
 # st.pyplot(fig)
+
+
+st.markdown(f"Args used for {name}: {override_args}")
