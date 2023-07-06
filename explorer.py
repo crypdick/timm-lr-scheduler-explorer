@@ -109,9 +109,6 @@ dummy_optimizer = create_optimizer_v2(dummy_model, opt="sgd", lr=lr)
 scheduler, timm_num_epochs = create_scheduler_v2(
     optimizer=dummy_optimizer, sched=name, **override_args
 )
-assert isinstance(
-    scheduler, Scheduler
-), f"Expected scheduler to be a timm.scheduler.Scheduler, got {type(scheduler)}"
 
 
 # simulate a training loop with the scheduler using num_epochs value and plot the LR
@@ -130,9 +127,17 @@ lrs2 = []
 for epoch in range(timm_num_epochs):
     # note: need to step at the beginning of epoch, since we use 0-indexing for epoch
     scheduler.step(epoch=epoch)  # will have no effect if step_on_epochs is False
-    
+
     epoch_ticks.append(epoch)
-    lrs.append(get_current_lr(dummy_optimizer))
+    lr_i = get_current_lr(dummy_optimizer)
+    lrs.append(lr_i)
+
+    if override_args[
+        "step_on_epochs"
+    ]:  # sanity check: get_lr should be the same as optimizer lr
+        assert (
+            lr_i == scheduler._get_lr(epoch)[0]
+        ), f"Mismatch between optimizer LR {lr_i} and scheduler LR {scheduler._get_lr(epoch)}"
 
     # use 1-indexing for batch_i to get the expected num batches
     for batch_i in range(1, override_args["updates_per_epoch"]):
@@ -141,11 +146,16 @@ for epoch in range(timm_num_epochs):
         # will have no effect if step_on_epochs is True
         scheduler.step_update(num_updates=global_batch)
         epoch_ticks.append(global_epoch)
-        lrs.append(get_current_lr(dummy_optimizer))
+        lr_i = get_current_lr(dummy_optimizer)
+        lrs.append(lr_i)
 
-    # lrs2.append(
-    # scheduler._get_lr(epoch)
-    # )  # sanity check: get_lr should be the same as optimizer lr
+        if not override_args[
+            "step_on_epochs"
+        ]:  # sanity check: get_lr should be the same as optimizer lr
+            assert (
+                lr_i == scheduler._get_lr(global_batch)[0]
+            ), f"Mismatch between optimizer LR {lr_i} and scheduler LR {scheduler._get_lr(global_batch)}"
+
 
 assert len(lrs) == timm_num_epochs * override_args["updates_per_epoch"], (
     f"Expected {timm_num_epochs * override_args['updates_per_epoch']-1} LR values, "
@@ -157,19 +167,7 @@ plt.scatter(epoch_ticks, lrs, color="red", s=1, marker=".")
 plt.title(f"Learning rate schedule for {name}")
 plt.xlabel("Epoch")
 plt.ylabel("Learning rate")
-# include all the override args as a caption
-# caption = "\n".join(
-#     f"{arg_name}: {arg_value}" for arg_name, arg_value in override_args.items()
-# )
 plt.ylim(bottom=0)
 st.pyplot(fig)
-
-# fig = plt.figure()
-# plt.plot(lrs2)
-# plt.title(f"Learning rate schedule for {name}")
-# plt.xlabel("Epoch")
-# plt.ylabel("Learning rate")
-# st.pyplot(fig)
-
 
 st.markdown(f"Args used for {name}: {override_args}")
