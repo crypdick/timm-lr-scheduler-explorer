@@ -9,7 +9,7 @@ from timm.scheduler.scheduler_factory import create_scheduler_v2
 import plotly.express as px
 
 # list all schedulers here
-st.sidebar.markdown("# Learning rate scheduler")
+st.sidebar.title("Timm LR scheduler explorer")
 
 
 @st.cache_data
@@ -169,3 +169,10 @@ st.plotly_chart(fig)
 
 
 st.markdown(f"Args used for {name}: {override_args}")
+
+# vertical spacer
+st.markdown("---")
+st.markdown(
+    f"Fork me on [GitHub](https://github.com/crypdick/timm-lr-scheduler-explorer)"
+)
+st.markdown("Made with ❤️ by [Richard Decal](richarddecal.com)")
