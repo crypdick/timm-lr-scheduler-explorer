@@ -6,7 +6,7 @@ import timm
 from timm.optim import create_optimizer_v2
 from timm.scheduler.scheduler import Scheduler
 from timm.scheduler.scheduler_factory import create_scheduler_v2
-import matplotlib.pyplot as plt
+import plotly.express as px
 
 # list all schedulers here
 st.sidebar.markdown("# Learning rate scheduler")
@@ -123,24 +123,19 @@ def get_current_lr(optimizer):
 
 epoch_ticks = []
 lrs = []
-lrs2 = []
 for epoch in range(timm_num_epochs):
     # note: need to step at the beginning of epoch, since we use 0-indexing for epoch
     scheduler.step(epoch=epoch)  # will have no effect if step_on_epochs is False
 
-    epoch_ticks.append(epoch)
-    lr_i = get_current_lr(dummy_optimizer)
-    lrs.append(lr_i)
-
     if override_args[
         "step_on_epochs"
     ]:  # sanity check: get_lr should be the same as optimizer lr
+        lr_i = get_current_lr(dummy_optimizer)
         assert (
             lr_i == scheduler._get_lr(epoch)[0]
         ), f"Mismatch between optimizer LR {lr_i} and scheduler LR {scheduler._get_lr(epoch)}"
 
-    # use 1-indexing for batch_i to get the expected num batches
-    for batch_i in range(1, override_args["updates_per_epoch"]):
+    for batch_i in range(override_args["updates_per_epoch"]):
         global_batch = epoch * override_args["updates_per_epoch"] + batch_i
         global_epoch = global_batch / override_args["updates_per_epoch"]
         # will have no effect if step_on_epochs is True
@@ -157,17 +152,20 @@ for epoch in range(timm_num_epochs):
             ), f"Mismatch between optimizer LR {lr_i} and scheduler LR {scheduler._get_lr(global_batch)}"
 
 
-assert len(lrs) == timm_num_epochs * override_args["updates_per_epoch"], (
-    f"Expected {timm_num_epochs * override_args['updates_per_epoch']-1} LR values, "
+assert len(lrs) == (timm_num_epochs * override_args["updates_per_epoch"]), (
+    f"Expected {(timm_num_epochs * override_args['updates_per_epoch'])} LR values, "
     f"got {len(lrs)}"
 )
 
-fig = plt.figure()
-plt.scatter(epoch_ticks, lrs, color="red", s=1, marker=".")
-plt.title(f"Learning rate schedule for {name}")
-plt.xlabel("Epoch")
-plt.ylabel("Learning rate")
-plt.ylim(bottom=0)
-st.pyplot(fig)
+
+fig = px.scatter(x=epoch_ticks, y=lrs)
+fig.update_traces(marker=dict(size=2))  # make scatter points smaller
+fig.update_layout(
+    title=f"Learning rate schedule for {name}",
+    xaxis_title="Epoch",
+    yaxis_title="Learning rates",
+)
+st.plotly_chart(fig)
+
 
 st.markdown(f"Args used for {name}: {override_args}")
