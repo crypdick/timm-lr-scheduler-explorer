@@ -1,5 +1,6 @@
 import inspect
 import re
+import json
 
 import gradio as gr
 import timm
@@ -8,6 +9,7 @@ from timm.scheduler.scheduler_factory import create_scheduler_v2
 import plotly.express as px
 
 import plotly.graph_objects as go
+
 
 
 def get_timm_schedulers():
@@ -99,7 +101,11 @@ def update_plot(name, lr, *args):
         yaxis_title="Learning rates",
     )
 
-    return fig
+    # Pretty print kwargs
+    kwargs_str = json.dumps(override_args, indent=2)
+    kwargs_output = f"Scheduler: {name}\nLearning rate: {lr}\n\nKwargs:\n{kwargs_str}"
+
+    return fig, kwargs_output
 
 
 def create_interface():
@@ -161,6 +167,7 @@ def create_interface():
 
             with gr.Column(scale=2):
                 plot = gr.Plot()
+                kwargs_output = gr.Textbox(label="Current Configuration", lines=10, interactive=False)
 
         # Set up event handlers for auto-update
         inputs = [name, lr] + list(override_args.values())
@@ -168,14 +175,14 @@ def create_interface():
             input_component.change(
                 fn=update_plot,
                 inputs=inputs,
-                outputs=plot,
+                outputs=[plot, kwargs_output],
             )
 
-        # Add on_load event to create initial plot
+        # Add on_load event to create initial plot and kwargs output
         demo.load(
             fn=update_plot,
             inputs=inputs,
-            outputs=plot,
+            outputs=[plot, kwargs_output],
         )
 
         gr.Markdown("---")
