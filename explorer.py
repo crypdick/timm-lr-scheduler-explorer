@@ -9,7 +9,8 @@ import plotly.express as px
 
 import plotly.graph_objects as go
 
-def get_timm_scheduleschedulerrs():
+
+def get_timm_schedulers():
     """
     Get list of timm schedulers
 
@@ -105,17 +106,41 @@ def create_interface():
     schedulers = get_timm_schedulers()
     default_args = get_scheduler_kwargs()
 
-    with gr.Blocks() as demo:
-        gr.Markdown("# Timm LR scheduler explorer")
+    with gr.Blocks(fill_width=True, title="timm LR scheduler explorer") as demo:
+        gr.Markdown("# `timm` LR scheduler explorer")
         
         with gr.Row():
             with gr.Column(scale=1):
                 name = gr.Dropdown(choices=schedulers, label="Scheduler", value=schedulers[0])
                 lr = gr.Number(value=1.0, label="Learning rate")
 
-                # Create input components for each argument
+                # Create input components for the first half of arguments
                 override_args = {}
-                for arg_name, default_value in default_args.items():
+                args_list = list(default_args.items())
+                midpoint = len(args_list) // 2
+
+                for arg_name, default_value in args_list[:midpoint]:
+                    if isinstance(default_value, bool):
+                        override_args[arg_name] = gr.Checkbox(value=default_value, label=arg_name)
+                    elif isinstance(default_value, (int, float)):
+                        if arg_name == "updates_per_epoch":
+                            default_value = 10
+                        elif arg_name == "num_epochs":
+                            default_value = 50
+                        override_args[arg_name] = gr.Number(value=default_value, label=arg_name)
+                    elif isinstance(default_value, str):
+                        override_args[arg_name] = gr.Textbox(value=default_value, label=arg_name)
+                    elif isinstance(default_value, (list, tuple)):
+                        default_value = ",".join(str(v) for v in default_value)
+                        override_args[arg_name] = gr.Textbox(value=default_value, label=arg_name)
+                    elif default_value is None:
+                        override_args[arg_name] = gr.Textbox(value="None", label=arg_name)
+                    else:
+                        raise NotImplementedError(f"Unknown type for {arg_name}")
+
+            with gr.Column(scale=1):
+                # Create input components for the second half of arguments
+                for arg_name, default_value in args_list[midpoint:]:
                     if isinstance(default_value, bool):
                         override_args[arg_name] = gr.Checkbox(value=default_value, label=arg_name)
                     elif isinstance(default_value, (int, float)):
@@ -141,10 +166,10 @@ def create_interface():
         inputs = [name, lr] + list(override_args.values())
         for input_component in inputs:
             input_component.change(
-            fn=update_plot,
-            inputs=inputs,
-            outputs=plot,
-        )
+                fn=update_plot,
+                inputs=inputs,
+                outputs=plot,
+            )
 
         # Add on_load event to create initial plot
         demo.load(
