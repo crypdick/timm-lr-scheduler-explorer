@@ -75,6 +75,9 @@ def update_plot(name, lr, *args):
     dummy_optimizer = create_optimizer_v2(dummy_model, opt="sgd", lr=lr)
 
     try:
+        if name.lower() == "plateau":
+            raise NotImplementedError("The 'plateau' scheduler is not supported because it requires monitoring a performance metric, which is not available in this dashboard.") 
+
         # Create scheduler
         scheduler, timm_num_epochs = create_scheduler_v2(
             optimizer=dummy_optimizer, sched=name, **override_args
@@ -113,10 +116,10 @@ def update_plot(name, lr, *args):
         error_message = f"Error: {str(e)}\n\nTraceback:\n{traceback.format_exc()}"
         empty_fig = go.Figure()
         empty_fig.update_layout(
-            title="Error: Unable to create scheduler",
+            title=f"Error creating scheduler `{name}`",
             annotations=[
                 dict(
-                    text="An error occurred while creating the scheduler. Please check the configuration.",
+                    text="An error occurred while creating the scheduler. Please check the error below.",
                     showarrow=False,
                     xref="paper",
                     yref="paper",
@@ -152,7 +155,7 @@ def create_interface():
 
     with gr.Blocks(fill_width=True, title="timm LR scheduler explorer") as demo:
         gr.Markdown("# `timm` LR scheduler explorer")
-        
+
         with gr.Row():
             with gr.Column(scale=1):
                 name = gr.Dropdown(choices=schedulers, label="Scheduler", value=schedulers[0])
@@ -200,3 +203,4 @@ def create_interface():
 if __name__ == "__main__":
     demo = create_interface()
     demo.launch()
+
