@@ -1,6 +1,8 @@
+import traceback
 import inspect
-import re
 import json
+import re
+
 
 import gradio as gr
 import timm
@@ -9,7 +11,6 @@ from timm.scheduler.scheduler_factory import create_scheduler_v2
 import plotly.express as px
 
 import plotly.graph_objects as go
-
 
 
 def get_timm_schedulers():
@@ -73,39 +74,58 @@ def update_plot(name, lr, *args):
     dummy_model = timm.create_model("resnet18")
     dummy_optimizer = create_optimizer_v2(dummy_model, opt="sgd", lr=lr)
 
-    # Create scheduler
-    scheduler, timm_num_epochs = create_scheduler_v2(
-        optimizer=dummy_optimizer, sched=name, **override_args
-    )
+    try:
+        # Create scheduler
+        scheduler, timm_num_epochs = create_scheduler_v2(
+            optimizer=dummy_optimizer, sched=name, **override_args
+        )
 
-    # Simulate training loop
-    epoch_ticks = []
-    lrs = []
-    for epoch in range(timm_num_epochs):
-        scheduler.step(epoch=epoch)
+        # Simulate training loop
+        epoch_ticks = []
+        lrs = []
+        for epoch in range(timm_num_epochs):
+            scheduler.step(epoch=epoch)
 
-        for batch_i in range(override_args["updates_per_epoch"]):
-            global_batch = epoch * override_args["updates_per_epoch"] + batch_i
-            global_epoch = global_batch / override_args["updates_per_epoch"]
-            scheduler.step_update(num_updates=global_batch)
-            epoch_ticks.append(global_epoch)
-            lr_i = get_current_lr(dummy_optimizer)
-            lrs.append(lr_i)
+            for batch_i in range(override_args["updates_per_epoch"]):
+                global_batch = epoch * override_args["updates_per_epoch"] + batch_i
+                global_epoch = global_batch / override_args["updates_per_epoch"]
+                scheduler.step_update(num_updates=global_batch)
+                epoch_ticks.append(global_epoch)
+                lr_i = get_current_lr(dummy_optimizer)
+                lrs.append(lr_i)
 
-    # Create plot
-    fig = px.scatter(x=epoch_ticks, y=lrs)
-    fig.update_traces(marker=dict(size=2))
-    fig.update_layout(
-        title=f"Learning rate schedule for {name}",
-        xaxis_title="Epoch",
-        yaxis_title="Learning rates",
-    )
+        # Create plot
+        fig = px.scatter(x=epoch_ticks, y=lrs)
+        fig.update_traces(marker=dict(size=2))
+        fig.update_layout(
+            title=f"Learning rate schedule for {name}",
+            xaxis_title="Epoch",
+            yaxis_title="Learning rates",
+        )
 
-    # Pretty print kwargs
-    kwargs_str = json.dumps(override_args, indent=2)
-    kwargs_output = f"Scheduler: {name}\nLearning rate: {lr}\n\nKwargs:\n{kwargs_str}"
+        # Pretty print kwargs
+        kwargs_str = json.dumps(override_args, indent=2)
+        kwargs_output = f"Scheduler: {name}\nLearning rate: {lr}\n\nKwargs:\n{kwargs_str}"
 
-    return fig, kwargs_output
+        return fig, kwargs_output
+
+    except Exception as e:
+        error_message = f"Error: {str(e)}\n\nTraceback:\n{traceback.format_exc()}"
+        empty_fig = go.Figure()
+        empty_fig.update_layout(
+            title="Error: Unable to create scheduler",
+            annotations=[
+                dict(
+                    text="An error occurred while creating the scheduler. Please check the configuration.",
+                    showarrow=False,
+                    xref="paper",
+                    yref="paper",
+                    x=0.5,
+                    y=0.5,
+                )
+            ],
+        )
+        return empty_fig, error_message
 
 
 def create_input_component(arg_name, default_value):
